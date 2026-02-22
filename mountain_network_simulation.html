@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เครือข่ายภูเขาสูง — จำลองระบบ</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;600;700&family=Sarabun:wght@300;400;600&display=swap');
+
+  :root {
+    --bg: #0a0f1a;
+    --surface: #0f1829;
+    --surface2: #162035;
+    --accent: #00d4ff;
+    --accent2: #00ff9d;
+    --warn: #ffb700;
+    --danger: #ff4757;
+    --muted: #3a4a6b;
+    --text: #c8d8f0;
+    --text-dim: #6b82a8;
+    --glow: 0 0 20px rgba(0,212,255,0.3);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Sarabun', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+  /* Header */
+  header {
+    text-align: center;
+    padding: 30px 20px 20px;
+    border-bottom: 1px solid var(--muted);
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-family: 'Chakra Petch', monospace;
+    font-size: 2rem;
+    color: var(--accent);
+    text-shadow: var(--glow);
+    letter-spacing: 0.05em;
+  }
+  header p { color: var(--text-dim); font-size: 0.9rem; margin-top: 6px; }
+
+  .badge {
+    display: inline-block;
+    background: rgba(0,212,255,0.1);
+    border: 1px solid rgba(0,212,255,0.3);
+    color: var(--accent);
+    font-family: 'Chakra Petch', monospace;
+    font-size: 0.7rem;
+    padding: 2px 10px;
+    border-radius: 20px;
+    margin: 4px 3px;
+  }
+
+  /* Layout grid */
+  .grid-main {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .grid-bottom {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+  }
+
+  /* Panels */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--muted);
+    border-radius: 8px;
+    padding: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+  .panel-title {
+    font-family: 'Chakra Petch', monospace;
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .panel-title .dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 6px var(--accent);
+    animation: blink 1.5s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* Canvas */
+  #networkCanvas {
+    width: 100%;
+    height: 420px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: block;
+  }
+
+  /* Controls */
+  .controls { display: flex; flex-direction: column; gap: 10px; }
+
+  .ctrl-group label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+    font-family: 'Chakra Petch', monospace;
+    letter-spacing: 0.05em;
+  }
+
+  .btn {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid;
+    border-radius: 5px;
+    font-family: 'Chakra Petch', monospace;
+    font-size: 0.78rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: all 0.2s;
+    background: transparent;
+  }
+  .btn-primary {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .btn-primary:hover, .btn-primary.active {
+    background: var(--accent);
+    color: var(--bg);
+    box-shadow: var(--glow);
+  }
+  .btn-warn {
+    border-color: var(--warn);
+    color: var(--warn);
+  }
+  .btn-warn:hover, .btn-warn.active {
+    background: var(--warn);
+    color: var(--bg);
+  }
+  .btn-danger {
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .btn-danger:hover, .btn-danger.active {
+    background: var(--danger);
+    color: #fff;
+  }
+  .btn-success {
+    border-color: var(--accent2);
+    color: var(--accent2);
+  }
+  .btn-success:hover, .btn-success.active {
+    background: var(--accent2);
+    color: var(--bg);
+  }
+
+  /* Node info */
+  #nodeInfo {
+    background: var(--surface2);
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 0.78rem;
+    min-height: 80px;
+  }
+  #nodeInfo .info-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+  #nodeInfo .info-label { color: var(--text-dim); }
+  #nodeInfo .info-val { color: var(--accent2); font-family: 'Chakra Petch', monospace; }
+
+  /* Log */
+  #eventLog {
+    background: var(--bg);
+    border: 1px solid var(--muted);
+    border-radius: 5px;
+    padding: 10px;
+    height: 140px;
+    overflow-y: auto;
+    font-family: 'Chakra Petch', monospace;
+    font-size: 0.7rem;
+  }
+  .log-entry { padding: 2px 0; border-bottom: 1px solid rgba(58,74,107,0.3); }
+  .log-entry.info { color: var(--accent); }
+  .log-entry.warn { color: var(--warn); }
+  .log-entry.error { color: var(--danger); }
+  .log-entry.success { color: var(--accent2); }
+
+  /* Stats bars */
+  .stat-row { margin-bottom: 10px; }
+  .stat-label { display: flex; justify-content: space-between; font-size: 0.72rem; margin-bottom: 3px; }
+  .stat-label span:first-child { color: var(--text-dim); }
+  .stat-label span:last-child { color: var(--accent); font-family: 'Chakra Petch', monospace; }
+  .bar-track { background: var(--muted); border-radius: 3px; height: 6px; overflow: hidden; }
+  .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+  }
+  .bar-cyan { background: linear-gradient(90deg, var(--accent), #0088cc); }
+  .bar-green { background: linear-gradient(90deg, var(--accent2), #00a060); }
+  .bar-warn { background: linear-gradient(90deg, var(--warn), #cc8800); }
+  .bar-danger { background: linear-gradient(90deg, var(--danger), #cc0020); }
+
+  /* Chart canvas */
+  canvas.chart { width:100%; height:160px; display:block; }
+
+  /* Legend */
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 0.7rem; color: var(--text-dim); }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* Packet animation container */
+  #packetCanvas { width:100%; height:160px; display:block; }
+
+  /* DTN queue display */
+  .queue-display {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 6px;
+  }
+  .queue-item {
+    width: 22px; height: 22px;
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.55rem;
+    font-family: 'Chakra Petch', monospace;
+    font-weight: 600;
+    transition: all 0.3s;
+  }
+  .queue-item.emergency { background: rgba(255,71,87,0.3); border: 1px solid var(--danger); color: var(--danger); }
+  .queue-item.data { background: rgba(0,212,255,0.15); border: 1px solid var(--accent); color: var(--accent); }
+  .queue-item.iot { background: rgba(0,255,157,0.15); border: 1px solid var(--accent2); color: var(--accent2); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 2px; }
+
+  /* Weather indicator */
+  .weather-bar {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .weather-btn {
+    flex: 1;
+    padding: 6px;
+    border: 1px solid var(--muted);
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.2s;
+  }
+  .weather-btn.active { border-color: var(--warn); color: var(--warn); background: rgba(255,183,0,0.1); }
+
+  /* Theory tags */
+  .theory-tags { display:flex; flex-wrap:wrap; gap:5px; margin-top:8px; }
+  .tag {
+    background: rgba(0,212,255,0.08);
+    border: 1px solid rgba(0,212,255,0.2);
+    color: var(--text-dim);
+    font-size: 0.65rem;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: 'Chakra Petch', monospace;
+  }
+
+  @media (max-width: 900px) {
+    .grid-main { grid-template-columns: 1fr; }
+    .grid-bottom { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>⛰ เครือข่ายภูเขาสูง — Simulation Dashboard</h1>
+  <p>Mockup / Toy Model สำหรับจำลองการทำงานของระบบเครือข่ายในพื้นที่ภูเขา</p>
+  <div style="margin-top:10px">
+    <span class="badge">OSI Model</span>
+    <span class="badge">DTN / Store-and-Forward</span>
+    <span class="badge">Ring/Mesh Topology</span>
+    <span class="badge">AIOps</span>
+    <span class="badge">Edge Computing</span>
+    <span class="badge">QoS / Queuing Theory</span>
+  </div>
+</header>
+
+<div class="grid-main">
+
+  <!-- Network Topology -->
+  <div class="panel">
+    <div class="panel-title"><span class="dot"></span> Network Topology — Ring/Mesh Backbone</div>
+    <canvas id="networkCanvas"></canvas>
+    <div class="legend" style="margin-top:10px">
+      <div class="legend-item"><div class="legend-dot" style="background:#00d4ff"></div>ยอดเขา (Backbone Node)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#00ff9d"></div>หมู่บ้าน (Access Node)</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#ff4757"></div>Node ล่ม</div>
+      <div class="legend-item"><div class="legend-dot" style="background:rgba(255,183,0,0.8)"></div>กำลังส่งข้อมูล</div>
+      <div class="legend-item"><div class="legend-dot" style="background:#888"></div>ลิงก์ขาด</div>
+    </div>
+  </div>
+
+  <!-- Right panel controls -->
+  <div style="display:flex; flex-direction:column; gap:12px;">
+
+    <div class="panel">
+      <div class="panel-title"><span class="dot"></span> ควบคุมการจำลอง</div>
+      <div class="controls">
+        <div class="ctrl-group">
+          <label>การทดสอบสถานการณ์</label>
+          <button class="btn btn-primary" onclick="startTransmission()" id="btnSend">▶ ส่งข้อมูลปกติ</button>
+        </div>
+        <button class="btn btn-danger" onclick="triggerLinkFailure()" id="btnFail">⚡ จำลองลิงก์ขาด (Link Failure)</button>
+        <button class="btn btn-warn" onclick="triggerWeather()" id="btnWeather">🌧 จำลองฝน/หมอก</button>
+        <button class="btn btn-success" onclick="triggerEmergency()" id="btnEmerg">🚨 ส่งสัญญาณฉุกเฉิน</button>
+        <button class="btn btn-primary" onclick="triggerRecovery()">🔄 กู้คืนระบบ (Auto-Recovery)</button>
+        <button class="btn btn-primary" onclick="triggerAIOps()">🤖 เปิด AIOps Auto-Reroute</button>
+      </div>
+
+      <div style="margin-top:10px">
+        <div class="panel-title" style="margin-bottom:6px">สภาพอากาศ</div>
+        <div class="weather-bar">
+          <button class="weather-btn active" id="wClear" onclick="setWeather('clear')">☀ ปกติ</button>
+          <button class="weather-btn" id="wRain" onclick="setWeather('rain')">🌧 ฝน</button>
+          <button class="weather-btn" id="wFog" onclick="setWeather('fog')">🌫 หมอก</button>
+          <button class="weather-btn" id="wStorm" onclick="setWeather('storm')">⛈ พายุ</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title"><span class="dot"></span> Node Info</div>
+      <div id="nodeInfo">
+        <div style="color:var(--text-dim); font-size:0.75rem">คลิกที่ Node บน Topology เพื่อดูข้อมูล</div>
+      </div>
+    </div>
+
+    <div class="panel" style="flex:1">
+      <div class="panel-title"><span class="dot"></span> Event Log</div>
+      <div id="eventLog"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Bottom row -->
+<div class="grid-bottom">
+
+  <!-- Network Stats -->
+  <div class="panel">
+    <div class="panel-title"><span class="dot"></span> Network Performance Stats</div>
+    <div id="statsPanel">
+      <div class="stat-row">
+        <div class="stat-label"><span>Throughput</span><span id="statTP">0 Mbps</span></div>
+        <div class="bar-track"><div class="bar-fill bar-cyan" id="barTP" style="width:0%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>Link Availability</span><span id="statLA">100%</span></div>
+        <div class="bar-track"><div class="bar-fill bar-green" id="barLA" style="width:100%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>Latency (ms)</span><span id="statLT">0 ms</span></div>
+        <div class="bar-track"><div class="bar-fill bar-warn" id="barLT" style="width:0%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>Packet Loss</span><span id="statPL">0%</span></div>
+        <div class="bar-track"><div class="bar-fill bar-danger" id="barPL" style="width:0%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>Active Links</span><span id="statLinks">8 / 8</span></div>
+        <div class="bar-track"><div class="bar-fill bar-cyan" id="barLinks" style="width:100%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label"><span>Energy Usage (Solar)</span><span id="statEnergy">45%</span></div>
+        <div class="bar-track"><div class="bar-fill bar-green" id="barEnergy" style="width:45%"></div></div>
+      </div>
+    </div>
+    <canvas class="chart" id="chartThroughput"></canvas>
+  </div>
+
+  <!-- Packet Simulation / DTN Queue -->
+  <div class="panel">
+    <div class="panel-title"><span class="dot"></span> Packet Flow + DTN Store-and-Forward</div>
+    <canvas id="packetCanvas"></canvas>
+    <div style="margin-top:10px">
+      <div style="font-size:0.72rem; color:var(--text-dim); margin-bottom:5px; font-family:'Chakra Petch',monospace;">DTN QUEUE — ข้อมูลรอส่ง (เมื่อลิงก์ขาด)</div>
+      <div class="queue-display" id="dtnQueue"></div>
+    </div>
+    <div style="margin-top:10px; display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; font-size:0.7rem; text-align:center;">
+      <div style="background:rgba(255,71,87,0.1); border:1px solid var(--danger); border-radius:4px; padding:6px">
+        <div style="color:var(--danger); font-family:'Chakra Petch',monospace; font-size:1rem" id="cntEmerg">0</div>
+        <div style="color:var(--text-dim)">ฉุกเฉิน</div>
+      </div>
+      <div style="background:rgba(0,212,255,0.1); border:1px solid var(--accent); border-radius:4px; padding:6px">
+        <div style="color:var(--accent); font-family:'Chakra Petch',monospace; font-size:1rem" id="cntData">0</div>
+        <div style="color:var(--text-dim)">ข้อมูลทั่วไป</div>
+      </div>
+      <div style="background:rgba(0,255,157,0.1); border:1px solid var(--accent2); border-radius:4px; padding:6px">
+        <div style="color:var(--accent2); font-family:'Chakra Petch',monospace; font-size:1rem" id="cntIoT">0</div>
+        <div style="color:var(--text-dim)">IoT Sensor</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OSI Layers / Theory -->
+  <div class="panel">
+    <div class="panel-title"><span class="dot"></span> OSI Layer Simulation</div>
+    <div id="osiLayers" style="display:flex; flex-direction:column; gap:5px;"></div>
+    <div style="margin-top:14px">
+      <div style="font-size:0.72rem; color:var(--text-dim); margin-bottom:6px; font-family:'Chakra Petch',monospace;">THEORETICAL FRAMEWORKS</div>
+      <div class="theory-tags">
+        <span class="tag">OSI Model</span>
+        <span class="tag">TCP/IP</span>
+        <span class="tag">DTN / Bundle Protocol</span>
+        <span class="tag">Graph Theory</span>
+        <span class="tag">Queuing Theory</span>
+        <span class="tag">Resilient Design</span>
+        <span class="tag">Edge Computing</span>
+        <span class="tag">SDN / NFV</span>
+      </div>
+    </div>
+    <div style="margin-top:12px; background:var(--surface2); border-radius:5px; padding:10px; font-size:0.7rem; color:var(--text-dim); line-height:1.6">
+      <span style="color:var(--accent2)">สถาปัตยกรรม 3 ชั้น:</span><br>
+      🔵 <b style="color:var(--accent)">Backbone Ring/Mesh</b> — ยอดเขา → ยอดเขา<br>
+      🟢 <b style="color:var(--accent2)">Access Layer</b> — Wi-Fi PtP + LoRa IoT<br>
+      🟡 <b style="color:var(--warn)">DTN Overlay</b> — Store-and-Forward
+    </div>
+  </div>
+
+</div>
+
+</div><!-- /container -->
+
+<script>
+// ===========================
+// NETWORK STATE
+// ===========================
+const nodes = [
+  // Backbone (mountain peaks)
+  { id:0, label:'ดอยสูง A', type:'backbone', x:0.5, y:0.15, status:'active', battery:92, signal:85 },
+  { id:1, label:'ดอยสูง B', type:'backbone', x:0.2, y:0.35, status:'active', battery:78, signal:90 },
+  { id:2, label:'ดอยสูง C', type:'backbone', x:0.8, y:0.35, status:'active', battery:88, signal:82 },
+  { id:3, label:'ดอยสูง D', type:'backbone', x:0.35, y:0.6,  status:'active', battery:65, signal:75 },
+  { id:4, label:'ดอยสูง E', type:'backbone', x:0.65, y:0.6,  status:'active', battery:72, signal:88 },
+  // Access (villages)
+  { id:5, label:'หมู่บ้าน 1', type:'village', x:0.1, y:0.6,  status:'active', battery:100, signal:70 },
+  { id:6, label:'หมู่บ้าน 2', type:'village', x:0.5, y:0.82, status:'active', battery:100, signal:65 },
+  { id:7, label:'หมู่บ้าน 3', type:'village', x:0.9, y:0.6,  status:'active', battery:100, signal:72 },
+  { id:8, label:'Internet GW', type:'gateway', x:0.5, y:0.02, status:'active', battery:100, signal:100 },
+];
+
+const edges = [
+  // Backbone ring
+  {a:0, b:1, type:'backbone'}, {a:0, b:2, type:'backbone'},
+  {a:1, b:3, type:'backbone'}, {a:2, b:4, type:'backbone'},
+  {a:3, b:4, type:'backbone'}, {a:1, b:4, type:'backbone'},
+  {a:2, b:3, type:'backbone'},
+  // Access
+  {a:1, b:5, type:'access'}, {a:3, b:6, type:'access'},
+  {a:4, b:6, type:'access'}, {a:2, b:7, type:'access'},
+  // Internet uplink
+  {a:8, b:0, type:'uplink'},
+];
+
+let failedLinks = new Set();
+let failedNodes = new Set();
+let activePackets = [];
+let weather = 'clear';
+let aiopsActive = false;
+let simStats = { throughput:0, latency:20, packetLoss:0, availability:100, activeLinks:edges.length, energy:45 };
+let throughputHistory = new Array(40).fill(0);
+let dtnQueue = [];
+let transmitting = false;
+
+// ===========================
+// CANVAS SETUP
+// ===========================
+const netCanvas = document.getElementById('networkCanvas');
+const netCtx = netCanvas.getContext('2d');
+const pktCanvas = document.getElementById('packetCanvas');
+const pktCtx = pktCanvas.getContext('2d');
+const chartCanvas = document.getElementById('chartThroughput');
+const chartCtx = chartCanvas.getContext('2d');
+
+function resizeCanvases() {
+  const nw = netCanvas.parentElement.clientWidth - 32;
+  netCanvas.width = nw;
+  netCanvas.height = 420;
+  pktCanvas.width = pktCanvas.parentElement.clientWidth - 32;
+  pktCanvas.height = 160;
+  chartCanvas.width = chartCanvas.parentElement.clientWidth - 32;
+  chartCanvas.height = 160;
+}
+resizeCanvases();
+window.addEventListener('resize', () => { resizeCanvases(); });
+
+// ===========================
+// DRAW NETWORK TOPOLOGY
+// ===========================
+function nodePos(node) {
+  return { x: node.x * netCanvas.width, y: node.y * netCanvas.height };
+}
+
+function drawNetwork() {
+  const ctx = netCtx;
+  ctx.clearRect(0, 0, netCanvas.width, netCanvas.height);
+
+  // Weather overlay
+  if (weather === 'fog') {
+    ctx.fillStyle = 'rgba(100,120,150,0.15)';
+    ctx.fillRect(0,0,netCanvas.width,netCanvas.height);
+  } else if (weather === 'rain') {
+    drawRain(ctx);
+  } else if (weather === 'storm') {
+    ctx.fillStyle = 'rgba(80,50,20,0.2)';
+    ctx.fillRect(0,0,netCanvas.width,netCanvas.height);
+    drawRain(ctx, true);
+  }
+
+  // Draw edges
+  edges.forEach((e, i) => {
+    const posA = nodePos(nodes[e.a]);
+    const posB = nodePos(nodes[e.b]);
+    const failed = failedLinks.has(i);
+    const weatherDegr = weather !== 'clear' && e.type !== 'uplink';
+
+    ctx.beginPath();
+    ctx.moveTo(posA.x, posA.y);
+    ctx.lineTo(posB.x, posB.y);
+
+    if (failed) {
+      ctx.strokeStyle = 'rgba(100,100,100,0.3)';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4,4]);
+    } else {
+      const colors = { backbone: 'rgba(0,212,255,', access: 'rgba(0,255,157,', uplink: 'rgba(255,183,0,' };
+      const alpha = weatherDegr ? 0.3 : 0.6;
+      ctx.strokeStyle = (colors[e.type] || 'rgba(100,100,200,') + alpha + ')';
+      ctx.lineWidth = e.type === 'backbone' ? 2 : 1.5;
+      ctx.setLineDash([]);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  });
+
+  // Draw packet animations on edges
+  activePackets.forEach(p => {
+    const posA = nodePos(nodes[p.from]);
+    const posB = nodePos(nodes[p.to]);
+    const x = posA.x + (posB.x - posA.x) * p.progress;
+    const y = posA.y + (posB.y - posA.y) * p.progress;
+
+    const colors = { emergency:'#ff4757', data:'#00d4ff', iot:'#00ff9d' };
+    ctx.beginPath();
+    ctx.arc(x, y, p.type==='emergency' ? 5 : 3.5, 0, Math.PI*2);
+    ctx.fillStyle = colors[p.type] || '#fff';
+    ctx.shadowColor = colors[p.type] || '#fff';
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  // Draw nodes
+  nodes.forEach((node, i) => {
+    const pos = nodePos(node);
+    const failed = failedNodes.has(i);
+    const isBackbone = node.type === 'backbone';
+    const isGW = node.type === 'gateway';
+
+    const r = isGW ? 14 : (isBackbone ? 11 : 8);
+
+    // Glow
+    if (!failed) {
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, r + 6, 0, Math.PI*2);
+      const grad = ctx.createRadialGradient(pos.x, pos.y, r, pos.x, pos.y, r+6);
+      const nodeColor = isGW ? '#ffb700' : (isBackbone ? '#00d4ff' : '#00ff9d');
+      grad.addColorStop(0, nodeColor + '40');
+      grad.addColorStop(1, 'transparent');
+      ctx.fillStyle = grad;
+      ctx.fill();
+    }
+
+    // Node circle
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r, 0, Math.PI*2);
+    if (failed) {
+      ctx.fillStyle = '#1a1a1a';
+      ctx.strokeStyle = '#ff4757';
+    } else {
+      const color = isGW ? '#ffb700' : (isBackbone ? '#00d4ff' : '#00ff9d');
+      ctx.fillStyle = color + '30';
+      ctx.strokeStyle = color;
+    }
+    ctx.lineWidth = 2;
+    ctx.fill();
+    ctx.stroke();
+
+    // Icon
+    ctx.font = `${isGW ? 11 : (isBackbone ? 10 : 9)}px Sarabun`;
+    ctx.fillStyle = failed ? '#ff4757' : '#fff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isGW ? '🌐' : (isBackbone ? '⛰' : '🏘'), pos.x, pos.y);
+
+    // Label
+    ctx.font = '10px Sarabun';
+    ctx.fillStyle = failed ? '#ff4757' : (isBackbone ? '#00d4ff' : '#00ff9d');
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText((failed ? '❌ ' : '') + node.label, pos.x, pos.y + r + 4);
+
+    // Signal bar under label
+    if (!failed) {
+      const bw = 30, bh = 3;
+      const bx = pos.x - bw/2;
+      const by = pos.y + r + 17;
+      ctx.fillStyle = '#1a2a3a';
+      ctx.fillRect(bx, by, bw, bh);
+      const color2 = node.signal > 70 ? '#00ff9d' : (node.signal > 40 ? '#ffb700' : '#ff4757');
+      ctx.fillStyle = color2;
+      ctx.fillRect(bx, by, bw * node.signal/100, bh);
+    }
+  });
+}
+
+function drawRain(ctx, heavy=false) {
+  ctx.strokeStyle = 'rgba(100,150,220,0.15)';
+  ctx.lineWidth = 1;
+  for (let i=0; i<(heavy?60:30); i++) {
+    const x = (Date.now()/50 + i*37) % netCanvas.width;
+    const y = (Date.now()/30 + i*59) % netCanvas.height;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x-3, y+12);
+    ctx.stroke();
+  }
+}
+
+// ===========================
+// PACKET CANVAS (Flow diagram)
+// ===========================
+const layers = ['Application','Transport','Network','Data Link','Physical'];
+const layerColors = ['#ff6b9d','#c084fc','#60a5fa','#34d399','#fbbf24'];
+
+function drawPacketFlow() {
+  const ctx = pktCtx;
+  const w = pktCanvas.width, h = pktCanvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  // Draw 5 OSI layer bands
+  const lh = h / 5;
+  layers.forEach((name, i) => {
+    ctx.fillStyle = layerColors[i] + '15';
+    ctx.fillRect(0, i*lh, w, lh-1);
+    ctx.font = '9px Chakra Petch';
+    ctx.fillStyle = layerColors[i] + 'aa';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`L${5-i} ${name}`, 4, i*lh + lh/2);
+  });
+
+  // Flowing packets on layers
+  const t = Date.now() / 800;
+  if (transmitting || aiopsActive) {
+    [0,1,2,3,4].forEach(li => {
+      [0,1,2].forEach(pi => {
+        const speed = 0.3 + li*0.05;
+        const x = ((t * speed + pi * 0.33) % 1.1 - 0.05) * w;
+        const y = li * lh + lh/2;
+        if (x > 0 && x < w) {
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI*2);
+          ctx.fillStyle = layerColors[li];
+          ctx.shadowColor = layerColors[li];
+          ctx.shadowBlur = 8;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      });
+    });
+  }
+}
+
+// ===========================
+// THROUGHPUT CHART
+// ===========================
+function drawThroughputChart() {
+  const ctx = chartCtx;
+  const w = chartCanvas.width, h = chartCanvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(58,74,107,0.4)';
+  ctx.lineWidth = 1;
+  for (let y=0; y<=4; y++) {
+    ctx.beginPath();
+    ctx.moveTo(0, y*h/4);
+    ctx.lineTo(w, y*h/4);
+    ctx.stroke();
+  }
+
+  const maxVal = Math.max(...throughputHistory, 10);
+  const step = w / (throughputHistory.length - 1);
+
+  // Gradient fill
+  const grad = ctx.createLinearGradient(0,0,0,h);
+  grad.addColorStop(0, 'rgba(0,212,255,0.3)');
+  grad.addColorStop(1, 'rgba(0,212,255,0)');
+
+  ctx.beginPath();
+  throughputHistory.forEach((v, i) => {
+    const x = i * step;
+    const y = h - (v / maxVal) * h * 0.9;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.lineTo(w, h);
+  ctx.lineTo(0, h);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  throughputHistory.forEach((v, i) => {
+    const x = i * step;
+    const y = h - (v / maxVal) * h * 0.9;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  });
+  ctx.strokeStyle = '#00d4ff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Label
+  ctx.font = '9px Chakra Petch';
+  ctx.fillStyle = '#6b82a8';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText('THROUGHPUT (Mbps)', 4, 4);
+}
+
+// ===========================
+// OSI LAYERS PANEL
+// ===========================
+function renderOSIPanel() {
+  const div = document.getElementById('osiLayers');
+  const osiData = [
+    {n:7, name:'Application', tech:'HTTP, MQTT, CoAP', active: transmitting},
+    {n:4, name:'Transport', tech:'TCP / UDP / QUIC', active: transmitting},
+    {n:3, name:'Network', tech:'IP / OSPF / IS-IS', active: true},
+    {n:2, name:'Data Link', tech:'802.11 Wi-Fi / LoRa', active: true},
+    {n:1, name:'Physical', tech:'RF / Microwave / FSO', active: true},
+  ];
+  div.innerHTML = osiData.map((l, i) => `
+    <div style="display:flex; align-items:center; gap:8px; padding:4px 8px; border-radius:4px;
+      background:${l.active ? layerColors[i]+'18' : 'rgba(30,40,60,0.5)'};
+      border:1px solid ${l.active ? layerColors[i]+'40' : '#2a3a50'}">
+      <div style="font-family:'Chakra Petch',monospace; font-size:0.65rem; color:${layerColors[i]}; min-width:20px">L${l.n}</div>
+      <div style="flex:1">
+        <div style="font-size:0.72rem; color:${l.active ? '#c8d8f0':'#4a5a7a'}">${l.name}</div>
+        <div style="font-size:0.62rem; color:#4a6080; font-family:'Chakra Petch',monospace">${l.tech}</div>
+      </div>
+      <div style="width:6px; height:6px; border-radius:50%; background:${l.active ? layerColors[i] : '#2a3a50'}; ${l.active ? 'box-shadow:0 0 6px '+layerColors[i] : ''}"></div>
+    </div>
+  `).join('');
+}
+
+// ===========================
+// DTN QUEUE DISPLAY
+// ===========================
+function renderDTNQueue() {
+  const div = document.getElementById('dtnQueue');
+  div.innerHTML = dtnQueue.slice(0, 20).map(q => `
+    <div class="queue-item ${q.type}" title="${q.label}">${q.label.substring(0,3)}</div>
+  `).join('');
+  document.getElementById('cntEmerg').textContent = dtnQueue.filter(q=>q.type==='emergency').length;
+  document.getElementById('cntData').textContent = dtnQueue.filter(q=>q.type==='data').length;
+  document.getElementById('cntIoT').textContent = dtnQueue.filter(q=>q.type==='iot').length;
+}
+
+// ===========================
+// STATS UPDATE
+// ===========================
+function updateStats() {
+  const fl = failedLinks.size;
+  const fn = failedNodes.size;
+  const total = edges.length;
+
+  const weatherMult = {clear:1, rain:0.7, fog:0.8, storm:0.4}[weather];
+
+  simStats.activeLinks = total - fl;
+  simStats.availability = Math.round(((total-fl)/total)*100 * weatherMult);
+  simStats.throughput = transmitting ? Math.round(45 * weatherMult * (simStats.activeLinks/total)) : 0;
+  simStats.latency = transmitting ? Math.round((20 + fl*15 + (weather==='storm'?80:weather==='rain'?30:0)) * (aiopsActive ? 0.7 : 1)) : 0;
+  simStats.packetLoss = Math.round((fl/total*40 + (weather==='storm'?25:weather==='rain'?8:0)) * (aiopsActive?0.5:1));
+  simStats.energy = Math.min(100, 45 + fl*5);
+
+  document.getElementById('statTP').textContent = simStats.throughput + ' Mbps';
+  document.getElementById('statLA').textContent = simStats.availability + '%';
+  document.getElementById('statLT').textContent = simStats.latency + ' ms';
+  document.getElementById('statPL').textContent = simStats.packetLoss + '%';
+  document.getElementById('statLinks').textContent = simStats.activeLinks + ' / ' + total;
+  document.getElementById('statEnergy').textContent = simStats.energy + '%';
+
+  document.getElementById('barTP').style.width = (simStats.throughput/50*100)+'%';
+  document.getElementById('barLA').style.width = simStats.availability+'%';
+  document.getElementById('barLT').style.width = Math.min(100, simStats.latency/200*100)+'%';
+  document.getElementById('barPL').style.width = simStats.packetLoss+'%';
+  document.getElementById('barLinks').style.width = (simStats.activeLinks/total*100)+'%';
+  document.getElementById('barEnergy').style.width = simStats.energy+'%';
+
+  throughputHistory.push(simStats.throughput);
+  if (throughputHistory.length > 40) throughputHistory.shift();
+}
+
+// ===========================
+// LOG
+// ===========================
+function log(msg, type='info') {
+  const div = document.getElementById('eventLog');
+  const t = new Date().toLocaleTimeString('th',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const entry = document.createElement('div');
+  entry.className = 'log-entry ' + type;
+  entry.textContent = `[${t}] ${msg}`;
+  div.insertBefore(entry, div.firstChild);
+  if (div.children.length > 50) div.removeChild(div.lastChild);
+}
+
+// ===========================
+// NODE CLICK INFO
+// ===========================
+netCanvas.addEventListener('click', (e) => {
+  const rect = netCanvas.getBoundingClientRect();
+  const mx = (e.clientX - rect.left) * (netCanvas.width / rect.width);
+  const my = (e.clientY - rect.top) * (netCanvas.height / rect.height);
+
+  nodes.forEach((node, i) => {
+    const pos = nodePos(node);
+    const dist = Math.hypot(mx-pos.x, my-pos.y);
+    if (dist < 20) {
+      const failed = failedNodes.has(i);
+      document.getElementById('nodeInfo').innerHTML = `
+        <div class="info-row"><span class="info-label">Node</span><span class="info-val">${node.label}</span></div>
+        <div class="info-row"><span class="info-label">ประเภท</span><span class="info-val">${node.type.toUpperCase()}</span></div>
+        <div class="info-row"><span class="info-label">สถานะ</span><span class="info-val" style="color:${failed?'#ff4757':'#00ff9d'}">${failed?'❌ OFFLINE':'✅ ONLINE'}</span></div>
+        <div class="info-row"><span class="info-label">แบตเตอรี่/พลังงาน</span><span class="info-val">${node.battery}%</span></div>
+        <div class="info-row"><span class="info-label">สัญญาณ</span><span class="info-val">${node.signal}%</span></div>
+        <div class="info-row"><span class="info-label">สภาพอากาศ</span><span class="info-val">${weather}</span></div>
+      `;
+      log(`คลิก Node: ${node.label} | Status: ${failed?'OFFLINE':'ONLINE'}`, 'info');
+    }
+  });
+});
+
+// ===========================
+// SIMULATION ACTIONS
+// ===========================
+function startTransmission() {
+  transmitting = true;
+  document.getElementById('btnSend').classList.add('active');
+  spawnPackets('data', 3);
+  log('▶ เริ่มส่งข้อมูลปกติ — IP/TCP Active', 'info');
+  setTimeout(() => {
+    transmitting = false;
+    document.getElementById('btnSend').classList.remove('active');
+    log('✓ ส่งข้อมูลเสร็จสิ้น', 'success');
+  }, 5000);
+}
+
+function triggerLinkFailure() {
+  const linkIdx = Math.floor(Math.random() * edges.length);
+  failedLinks.add(linkIdx);
+  const e = edges[linkIdx];
+  log(`⚡ ลิงก์ขาด: ${nodes[e.a].label} ↔ ${nodes[e.b].label}`, 'error');
+
+  // Add to DTN queue
+  for (let i=0; i<4; i++) {
+    dtnQueue.push({type:'data', label:'PKT'+(Math.floor(Math.random()*99))});
+  }
+
+  if (aiopsActive) {
+    setTimeout(() => {
+      log('🤖 AIOps: ตรวจพบลิงก์ขาด กำลัง Re-route อัตโนมัติ...', 'warn');
+      setTimeout(() => {
+        log('✅ AIOps: Reroute สำเร็จ — เส้นทางสำรอง Ring/Mesh ทำงาน', 'success');
+        failedLinks.delete(linkIdx);
+      }, 2000);
+    }, 800);
+  } else {
+    log('⚠ DTN Overlay: บันทึกข้อมูลรอส่ง (Store-and-Forward)', 'warn');
+  }
+}
+
+function triggerWeather() {
+  setWeather('rain');
+  log('🌧 สภาพอากาศเปลี่ยน: ฝนตกหนัก — สัญญาณลดลง 30%', 'warn');
+  spawnPackets('data', 2);
+}
+
+function triggerEmergency() {
+  spawnPackets('emergency', 5);
+  dtnQueue.unshift({type:'emergency', label:'SOS'});
+  log('🚨 สัญญาณฉุกเฉิน! QoS ยกระดับ — ข้อมูลฉุกเฉินได้ Priority สูงสุด', 'error');
+  setTimeout(() => log('✅ สัญญาณฉุกเฉินถึงปลายทาง (Emergency Traffic Prioritized)', 'success'), 2000);
+}
+
+function triggerRecovery() {
+  failedLinks.clear();
+  failedNodes.clear();
+  dtnQueue = dtnQueue.filter(q => q.type === 'emergency');
+  log('🔄 กู้คืนระบบ — ลิงก์ทั้งหมดกลับมาออนไลน์ (Auto-Recovery)', 'success');
+  log('📤 DTN: ส่งข้อมูลที่ค้างในคิวออกไปทั้งหมด', 'success');
+  setTimeout(() => { dtnQueue = []; }, 1500);
+}
+
+function triggerAIOps() {
+  aiopsActive = !aiopsActive;
+  document.getElementById('btnEmerg').textContent = aiopsActive ?
+    '🤖 AIOps: กำลังทำงาน...' : '▶ เปิด AIOps Auto-Reroute';
+  log(aiopsActive ? '🤖 AIOps เปิดใช้งาน — ระบบจะ Re-route อัตโนมัติเมื่อลิงก์ขาด' : '🤖 AIOps ปิด', 'info');
+  if (aiopsActive) spawnPackets('iot', 3);
+}
+
+function setWeather(w) {
+  weather = w;
+  ['Clear','Rain','Fog','Storm'].forEach(x => {
+    document.getElementById('w'+x).classList.remove('active');
+  });
+  document.getElementById('w'+w.charAt(0).toUpperCase()+w.slice(1)).classList.add('active');
+  const effects = {clear:'สัญญาณปกติ', rain:'Throughput -30%, Latency +30ms', fog:'Throughput -20%', storm:'Throughput -60%, Packet Loss +25%'};
+  log(`🌤 อากาศเปลี่ยนเป็น ${w.toUpperCase()} — ${effects[w]}`, 'warn');
+}
+
+// ===========================
+// PACKET SPAWNING
+// ===========================
+function spawnPackets(type, count) {
+  const path = [8,0,1,3,5]; // default path
+  for (let i=0; i<count; i++) {
+    setTimeout(() => {
+      for (let j=0; j<path.length-1; j++) {
+        activePackets.push({
+          from: path[j], to: path[j+1],
+          progress: 0,
+          speed: 0.015 + Math.random()*0.01,
+          type: type,
+          delay: j * 0.3
+        });
+      }
+      // Also random path
+      if (type !== 'emergency') {
+        const altPath = [8,0,2,4,6];
+        altPath.forEach((n,j) => {
+          if (j < altPath.length-1) {
+            activePackets.push({
+              from: altPath[j], to: altPath[j+1],
+              progress: 0,
+              speed: 0.012 + Math.random()*0.008,
+              type: type,
+              delay: j * 0.25
+            });
+          }
+        });
+      }
+    }, i * 400);
+  }
+}
+
+// ===========================
+// MAIN LOOP
+// ===========================
+let lastStatsUpdate = 0;
+let frame = 0;
+
+function animate(ts) {
+  requestAnimationFrame(animate);
+  frame++;
+
+  // Update packets
+  activePackets = activePackets.filter(p => {
+    p.delay = Math.max(0, p.delay - 0.016);
+    if (p.delay > 0) return true;
+    p.progress += p.speed;
+    return p.progress < 1;
+  });
+
+  // Auto-spawn IoT packets
+  if (aiopsActive && frame % 80 === 0) {
+    spawnPackets('iot', 1);
+    if (Math.random() < 0.3) dtnQueue.push({type:'iot', label:'IoT'});
+  }
+
+  // Auto-spawn data occasionally
+  if (transmitting && frame % 30 === 0) {
+    if (Math.random() < 0.4) activePackets.push({
+      from: Math.floor(Math.random()*5),
+      to: Math.floor(Math.random()*4),
+      progress: 0,
+      speed: 0.02,
+      type: 'data',
+      delay: 0
+    });
+  }
+
+  drawNetwork();
+  drawPacketFlow();
+  drawThroughputChart();
+  renderOSIPanel();
+  renderDTNQueue();
+
+  if (ts - lastStatsUpdate > 800) {
+    updateStats();
+    lastStatsUpdate = ts;
+    // random signal fluctuation
+    nodes.forEach(n => {
+      const effect = weather === 'storm' ? -8 : weather === 'rain' ? -3 : weather === 'fog' ? -2 : 1;
+      n.signal = Math.max(20, Math.min(100, n.signal + (Math.random()-0.5)*4 + effect*0.3));
+    });
+  }
+}
+
+// ===========================
+// INIT
+// ===========================
+log('🟢 ระบบเครือข่ายภูเขาสูงเริ่มต้นแล้ว', 'success');
+log('📡 Backbone Ring/Mesh: ออนไลน์ทั้ง 5 ยอดเขา', 'success');
+log('🏘 Access Layer: หมู่บ้าน 3 แห่ง เชื่อมต่อแล้ว', 'success');
+log('🌐 Internet Gateway: ออนไลน์', 'success');
+log('💡 กดปุ่มด้านซ้ายเพื่อทดสอบสถานการณ์ต่างๆ', 'info');
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
